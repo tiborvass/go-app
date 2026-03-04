@@ -218,7 +218,7 @@ func FuncOf(fn func(this Value, args []Value) any) Func {
 	return funcOf(fn)
 }
 
-// BrowserWindow is the interface that describes the browser window.
+// BrowserWindow is the interface used by RunConfig.
 type BrowserWindow interface {
 	Value
 

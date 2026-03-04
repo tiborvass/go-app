@@ -229,11 +229,11 @@ func (m nodeManager) mountComponent(ctx Context, depth uint, v Composer) (UI, er
 		initializer.OnInit()
 	}
 
-	if preRenderer, ok := v.(PreRenderer); ok && IsServer {
+	if preRenderer, ok := v.(PreRenderer); ok && isServerRuntime() {
 		ctx.Dispatch(preRenderer.OnPreRender)
 	}
 
-	if mounter, ok := v.(Mounter); ok && IsClient {
+	if mounter, ok := v.(Mounter); ok && isClientRuntime() {
 		ctx.Dispatch(mounter.OnMount)
 	}
 

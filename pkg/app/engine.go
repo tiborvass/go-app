@@ -42,7 +42,7 @@ type engineX struct {
 func newEngine(ctx context.Context, routes *router, resolveURL func(string) string, originPage *requestPage, actionHandlers map[string]ActionHandler) *engineX {
 	var localStorage BrowserStorage
 	var sessionStorage BrowserStorage
-	if IsServer {
+	if isServerRuntime() {
 		localStorage = newMemoryStorage()
 		sessionStorage = newMemoryStorage()
 	} else {
@@ -158,7 +158,7 @@ func (e *engineX) Navigate(destination *url.URL, updateHistory bool) {
 }
 
 func (e *engineX) initBrowser() {
-	if IsServer {
+	if isServerRuntime() {
 		return
 	}
 	e.browser.HandleEvents(e.baseContext(), e.notifyComponentEvent)
@@ -191,7 +191,7 @@ func (e *engineX) internalURL(v *url.URL) bool {
 }
 
 func (e *engineX) page() Page {
-	if IsClient {
+	if isClientRuntime() {
 		return makeBrowserPage(e.resolveURL)
 	}
 	return e.originPage

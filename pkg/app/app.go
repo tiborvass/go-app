@@ -29,14 +29,20 @@ const (
 )
 
 var (
-	routes = makeRouter()
-	window = newBrowserWindow()
+	routes               = makeRouter()
+	window BrowserWindow = newBrowserWindow()
 )
+
+// RunConfig configures Run.
+type RunConfig struct {
+	// BrowserWindow provides a browser implementation for non-wasm runs.
+	BrowserWindow BrowserWindow
+}
 
 // Getenv retrieves the value of the environment variable named by the key. It
 // returns the value, which will be empty if the variable is not present.
 func Getenv(k string) string {
-	if IsServer || !Window().Get("goappGetenv").Truthy() {
+	if isServerRuntime() || !Window().Get("goappGetenv").Truthy() {
 		return os.Getenv(k)
 	}
 
@@ -50,7 +56,7 @@ func Getenv(k string) string {
 // KeepBodyClean prevents third-party Javascript libraries to add nodes to the
 // body element.
 func KeepBodyClean() (close func()) {
-	if IsServer {
+	if isServerRuntime() {
 		return func() {}
 	}
 
@@ -63,6 +69,25 @@ func KeepBodyClean() (close func()) {
 // Window returns the JavaScript "window" object.
 func Window() BrowserWindow {
 	return window
+}
+
+// Run starts the app and blocks in the render loop until the context is
+// canceled or startup fails.
+func Run(ctx context.Context, config RunConfig) error {
+	if IsServer {
+		browserWindow := config.BrowserWindow
+		if browserWindow == nil {
+			browserWindow = window
+		}
+
+		restore := withRuntimeOverrides(
+			true,
+			browserWindow,
+		)
+		defer restore()
+	}
+
+	return runApp(ctx)
 }
 
 // RunWhenOnBrowser starts the app, displaying the component associated with the
@@ -91,16 +116,16 @@ func RunWhenOnBrowser() {
 		return
 	}
 
-	defer func() {
-		err := recover()
-		displayLoadError(err)
+	if err := runApp(context.Background()); err != nil {
 		panic(err)
-	}()
+	}
+}
 
+func runApp(ctx context.Context) error {
 	resolveURL := clientResourceResolver(Getenv("GOAPP_STATIC_RESOURCES_URL"))
 	originPage := makeRequestPage(Window().URL(), resolveURL)
 
-	engine := newEngine(context.Background(),
+	engine := newEngine(ctx,
 		&routes,
 		resolveURL,
 		&originPage,
@@ -109,6 +134,7 @@ func RunWhenOnBrowser() {
 
 	engine.Navigate(window.URL(), false)
 	engine.Start(120)
+	return nil
 }
 
 func displayLoadError(err any) {
@@ -171,7 +197,7 @@ func NewZeroComponentFactory(c Composer) func() Composer {
 // notifies components implementing the AppUpdater interface that an update is
 // ready.
 func TryUpdate() {
-	if tryUpdate := Window().Get("goappTryUpdate"); IsClient && tryUpdate.Truthy() {
+	if tryUpdate := Window().Get("goappTryUpdate"); isClientRuntime() && tryUpdate.Truthy() {
 		tryUpdate.Invoke()
 	}
 }

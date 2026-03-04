@@ -100,7 +100,7 @@ func (ctx Context) Page() Page {
 
 // Reload refreshes the present page.
 func (ctx Context) Reload() {
-	if IsServer {
+	if isServerRuntime() {
 		return
 	}
 	Window().Get("location").Call("reload")
