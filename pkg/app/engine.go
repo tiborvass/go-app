@@ -225,16 +225,28 @@ func (e *engineX) Load(v Composer) error {
 // Start initiates the main event loop of the engine at the specified framerate.
 // The loop efficiently manages dispatches, component updates, and deferred
 // actions.
-func (e *engineX) Start(framerate int) {
+//
+// maxIdleDuration controls an optional auto-exit mode:
+//   - <= 0 disables idle auto-exit.
+//   - > 0 exits when no frame tick occurs for that duration.
+func (e *engineX) Start(framerate int, maxIdleDuration time.Duration) {
 	if framerate <= 0 {
 		framerate = 30
 	}
 
-	iddleFrameDuration := time.Hour
+	idleFrameDuration := time.Hour
 	activeFrameDuration := time.Second / time.Duration(framerate)
 	currentFrameDuration := time.Nanosecond
 	frames := time.NewTicker(currentFrameDuration)
 	defer frames.Stop()
+
+	var idleTimerCh <-chan time.Time
+	var idleTimer *time.Timer
+	if maxIdleDuration > 0 {
+		idleTimer = time.NewTimer(maxIdleDuration)
+		defer idleTimer.Stop()
+		idleTimerCh = idleTimer.C
+	}
 
 	e.states.CleanupExpiredPersistedStates(e.baseContext())
 
@@ -249,8 +261,14 @@ func (e *engineX) Start(framerate int) {
 
 		case <-frames.C:
 			e.processFrame()
-			frames.Reset(iddleFrameDuration)
-			currentFrameDuration = iddleFrameDuration
+			if idleTimer != nil {
+				idleTimer.Reset(maxIdleDuration)
+			}
+			frames.Reset(idleFrameDuration)
+			currentFrameDuration = idleFrameDuration
+
+		case <-idleTimerCh:
+			return
 
 		case <-e.ctx.Done():
 			return

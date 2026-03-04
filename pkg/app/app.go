@@ -16,6 +16,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"time"
 )
 
 const (
@@ -37,6 +38,10 @@ var (
 type RunConfig struct {
 	// BrowserWindow provides a browser implementation for non-wasm runs.
 	BrowserWindow BrowserWindow
+
+	// MaxIdleDuration configures when the run loop should stop once there is no
+	// frame activity. If <= 0, this behavior is disabled.
+	MaxIdleDuration time.Duration
 }
 
 // Getenv retrieves the value of the environment variable named by the key. It
@@ -87,7 +92,7 @@ func Run(ctx context.Context, config RunConfig) error {
 		defer restore()
 	}
 
-	return runApp(ctx)
+	return runApp(ctx, config)
 }
 
 // RunWhenOnBrowser starts the app, displaying the component associated with the
@@ -116,12 +121,14 @@ func RunWhenOnBrowser() {
 		return
 	}
 
-	if err := runApp(context.Background()); err != nil {
+	if err := runApp(context.Background(), RunConfig{}); err != nil {
 		panic(err)
 	}
 }
 
-func runApp(ctx context.Context) error {
+func runApp(ctx context.Context, config RunConfig) error {
+	const framerate = 120
+
 	resolveURL := clientResourceResolver(Getenv("GOAPP_STATIC_RESOURCES_URL"))
 	originPage := makeRequestPage(Window().URL(), resolveURL)
 
@@ -133,7 +140,7 @@ func runApp(ctx context.Context) error {
 	)
 
 	engine.Navigate(window.URL(), false)
-	engine.Start(120)
+	engine.Start(framerate, config.MaxIdleDuration)
 	return nil
 }
 

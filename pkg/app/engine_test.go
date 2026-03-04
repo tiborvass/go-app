@@ -230,7 +230,7 @@ func TestEngineStart(t *testing.T) {
 
 	destination, _ := url.Parse("/")
 	e.Navigate(destination, false)
-	e.Start(0)
+	e.Start(0, 0)
 }
 
 func TestEngineEncode(t *testing.T) {
