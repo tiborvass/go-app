@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -263,6 +264,28 @@ func (w *Window) ReplaceHistory(u *url.URL) {
 	w.SetURL(u)
 }
 
+// HTML returns a serialized HTML snapshot of the fake document.
+func (w *Window) HTML() string {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	var b strings.Builder
+	b.WriteString("<!doctype html>\n")
+	b.WriteString("<html>")
+	b.WriteString("<head>")
+	for _, child := range w.head.children {
+		renderNode(&b, child.node)
+	}
+	b.WriteString("</head>")
+	b.WriteString("<body>")
+	for _, child := range w.body.children {
+		renderNode(&b, child.node)
+	}
+	b.WriteString("</body>")
+	b.WriteString("</html>")
+	return b.String()
+}
+
 func (w *Window) newWindowObject() *object {
 	o := &object{props: map[string]Value{}}
 	o.props["document"] = Value{v: w.document}
@@ -342,6 +365,47 @@ func (w *Window) newWindowObject() *object {
 	})
 
 	return o
+}
+
+func renderNode(b *strings.Builder, n *node) {
+	if n == nil {
+		return
+	}
+
+	tag := strings.ToLower(n.tag)
+	if tag == "#text" {
+		if nodeValue, ok := n.object.props["nodeValue"]; ok {
+			b.WriteString(nodeValue.String())
+			return
+		}
+		b.WriteString(n.nodeValue)
+		return
+	}
+
+	b.WriteString("<")
+	b.WriteString(tag)
+
+	keys := make([]string, 0, len(n.attrs))
+	for k := range n.attrs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		b.WriteString(" ")
+		b.WriteString(k)
+		b.WriteString("=\"")
+		b.WriteString(n.attrs[k])
+		b.WriteString("\"")
+	}
+	b.WriteString(">")
+
+	for _, child := range n.children {
+		renderNode(b, child.node)
+	}
+
+	b.WriteString("</")
+	b.WriteString(tag)
+	b.WriteString(">")
 }
 
 func (w *Window) newLocation() *object {
