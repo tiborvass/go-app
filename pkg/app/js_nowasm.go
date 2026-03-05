@@ -154,15 +154,16 @@ type browserWindow struct {
 	body UI
 }
 
-func newBrowserWindow() *browserWindow {
-	return newBrowserWindowFromFake(fakebrowser.NewWindow("http://localhost/"))
+func newBrowserWindow(url string) *browserWindow {
+	fb := fakebrowser.NewWindow(url)
+	return &browserWindow{
+		value: value{fb: fb.Global()},
+		fake:  fb,
+	}
 }
 
-func newBrowserWindowFromFake(fake *fakebrowser.Window) *browserWindow {
-	return &browserWindow{
-		value: value{fb: fake.Global()},
-		fake:  fake,
-	}
+func (w *browserWindow) HTML() string {
+	return w.fake.HTML()
 }
 
 func (w browserWindow) URL() *url.URL {

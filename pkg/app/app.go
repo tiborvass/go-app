@@ -31,7 +31,7 @@ const (
 
 var (
 	routes               = makeRouter()
-	window BrowserWindow = newBrowserWindow()
+	window BrowserWindow = newBrowserWindow("http://localhost/")
 )
 
 // RunConfig configures Run.

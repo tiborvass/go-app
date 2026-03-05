@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxence-charriere/go-app/v10/pkg/fakebrowser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,15 +114,12 @@ func TestRunWithFakeBrowser(t *testing.T) {
 	defer delete(routes.routes, "/run-ok")
 	Route("/run-ok", NewZeroComponentFactory(&runOKCompo{}))
 
-	fake := fakebrowser.NewWindow("http://localhost/run-ok")
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		cancel()
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
 
+	w := newBrowserWindow("http://localhost/run-ok")
 	err := Run(ctx, RunConfig{
-		BrowserWindow: newBrowserWindowFromFake(fake),
+		BrowserWindow: w,
 	})
 	require.NoError(t, err)
 }
@@ -160,16 +156,16 @@ func TestRunSSR(t *testing.T) {
 func runSSRHTMLWithMaxIdle(t *testing.T, maxIdleDuration time.Duration) string {
 	t.Helper()
 
-	fake := fakebrowser.NewWindow("http://localhost/run-ssr")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	w := newBrowserWindow("http://localhost/run-ssr")
 	err := Run(ctx, RunConfig{
-		BrowserWindow:   newBrowserWindowFromFake(fake),
+		BrowserWindow:   w,
 		MaxIdleDuration: maxIdleDuration,
 	})
 	require.NoError(t, err)
 	require.NoError(t, ctx.Err())
 
-	return fake.HTML()
+	return w.HTML()
 }

@@ -222,6 +222,8 @@ func FuncOf(fn func(this Value, args []Value) any) Func {
 type BrowserWindow interface {
 	Value
 
+	HTML() string
+
 	// The window current url (window.location.href).
 	URL() *url.URL
 

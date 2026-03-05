@@ -252,8 +252,12 @@ type browserWindow struct {
 	cursorY int
 }
 
-func newBrowserWindow() *browserWindow {
+func newBrowserWindow(_ string) *browserWindow {
 	return &browserWindow{value: value{jsValue: js.Global()}}
+}
+
+func (w *browserWindow) HTML() string {
+	return w.Get("document").Get("documentElement").Get("outerHTML").String()
 }
 
 func (w *browserWindow) URL() *url.URL {
