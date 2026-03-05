@@ -615,6 +615,21 @@ func (h *Handler) servePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	document := h.makePage(r)
+
+	var b bytes.Buffer
+	b.WriteString("<!doctype html>\n")
+	nodeManager{}.Encode(Context{
+		Context:    context.Background(),
+		resolveURL: h.Resources.Resolve,
+	}, &b, document)
+
+	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(b.Bytes())
+}
+
+func (h *Handler) makePage(r *http.Request) HTMLHtml {
 	ctx := context.Background()
 
 	origin := *r.URL
@@ -643,8 +658,27 @@ func (h *Handler) servePage(w http.ResponseWriter, r *http.Request) {
 		icon = h.Icon.Default
 	}
 
-	var b bytes.Buffer
-	err := engine.Encode(&b, h.HTML().
+	var body []UI
+	if engine.body != nil && len(engine.body.body()) != 0 {
+		body = append(body, engine.body.body()[0])
+	}
+	body = append(body, Aside().
+		ID("app-wasm-loader").
+		Class("goapp-app-info").
+		Body(
+			Img().
+				ID("app-wasm-loader-icon").
+				Class("goapp-logo goapp-spin").
+				Alt("wasm loader icon").
+				Src(h.Icon.Default),
+			P().
+				ID("app-wasm-loader-label").
+				Class("goapp-label").
+				Text(page.loadingLabel),
+		),
+	)
+
+	return h.HTML().
 		Lang(page.Lang()).
 		privateBody(
 			Head().Body(
@@ -766,32 +800,8 @@ func (h *Handler) servePage(w http.ResponseWriter, r *http.Request) {
 					return Raw(h.RawHeaders[i])
 				}),
 			),
-			h.Body().privateBody(
-				Aside().
-					ID("app-wasm-loader").
-					Class("goapp-app-info").
-					Body(
-						Img().
-							ID("app-wasm-loader-icon").
-							Class("goapp-logo goapp-spin").
-							Alt("wasm loader icon").
-							Src(h.Icon.Default),
-						P().
-							ID("app-wasm-loader-label").
-							Class("goapp-label").
-							Text(page.loadingLabel),
-					),
-			),
-		))
-	if err != nil {
-		Log(errors.New("encoding html document failed").Wrap(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(b.Bytes())
+			h.Body().privateBody(body...),
+		)
 }
 
 func (h *Handler) serveLibrary(w http.ResponseWriter, r *http.Request, library []byte) {
